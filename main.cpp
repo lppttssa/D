@@ -4,6 +4,7 @@
 #include <queue>
 #include <cmath>
 #include <set>
+#include <ctime>
 
 struct coordStruct {
     int x;
@@ -49,7 +50,6 @@ vector <coordStruct> coord(0);
 int fromVert = 0;
 const auto MAX = 100000;
 const auto eps = 0.001;
-
 
 
 double Dijkstra() {
@@ -155,7 +155,7 @@ double minSuccVert(int prevVert, char val) { //return path or vert
     double pathToS = 0;
     int vert = 0;
     for (auto s : succ(prevVert)) {
-        pathToS = getEdgeValue(prevVert, s) + dist[s].rhs;
+        pathToS = getEdgeValue(prevVert, s) + dist[s].g;
         if (min > pathToS) {
             min = pathToS;
             vert = s;
@@ -190,10 +190,7 @@ forQueue calcKey(int s) {
 
 void initialize() {
     for (auto i = 0; i < vertNum; i++) {
-        distStruct mem{};
-        mem.g = MAX;
-        mem.rhs = MAX;
-        dist.push_back(mem);
+        dist.push_back({MAX, MAX});
     }
     dist[endVert].rhs = 0;
     Q.push(calcKey(endVert));
@@ -244,8 +241,6 @@ int main() {
     //changed vert number with vert, x, y
     //changed edge number with start, end, changed edge value
 
-
-
     //0-10 - 5vert
     //11-20 - 10vert
     //21-25 - 100vert
@@ -256,12 +251,14 @@ int main() {
     //80-99 - 100vert with change
     //100-109 - 1000vert with change
     //110-119 - 5000vert with change
-
-    //for (int i = 0; i < 1000; i++) {
+    int testNum = 0;
+    double timeD = 0;
+    double timeDijkstra = 0;
+    for (int i = 0; i < 25; i++) {
         clearData();
-        int testNum = 332;
+        testNum = i;
         string testName = "input" + to_string(testNum) + ".txt";
-        ifstream in("D:\\6sem\\algorithm\\tests4\\" + testName);
+        ifstream in("D:\\6sem\\algorithm\\tests\\" + testName);
         ofstream out("output.txt");
 
         in >> vertNum >> edgeNum >> fromVert >> endVert;
@@ -286,41 +283,10 @@ int main() {
             list[edgeStart].push_back(mem);
         }
 
-        /*for (auto i = 0; i < list.size(); i++){
-            for (auto j: list[i]) {
-                cout << i << " " << j.vert << " "<< j.weight<< "  ";
-            }
-            cout << coord[i].x << " " << coord[i].y << "     ";
-        }*/
-
+        unsigned int start_time =  clock(); // начальное время
         initialize();
 
         computeShortestPath();
-
-        /*forQueue mem{};
-        mem.v = 1;
-        mem.key1 = 4;
-        mem.key2 = 3;
-        Q.push(mem);
-
-        forQueue mem2{};
-        mem2.v = 2;
-        mem2.key1 = 5;
-        mem2.key2 = 8;
-        Q.push(mem2);
-
-        mem2.v = 3;
-        mem2.key1 = 4;
-        mem2.key2 = 4;
-        Q.push(mem2);
-
-        cout << "   ";
-
-        remove(2);
-        while (!Q.empty()) {
-            cout << Q.top().v << " ";
-            Q.pop();
-        }*/
 
         while (startVert != endVert) {
 
@@ -344,14 +310,11 @@ int main() {
                     coord[vert].y = y;
                 }
 
-                /*COUT FOR COORDINATES
-                 for (auto i: coord) {
-                    cout << "\n" << i.x << " " << i.y;
-                }*/
-
+                vector <int> verts(0);
                 for (auto i = 0; i < changedEdgesNumber; i++) {//correct
                     int start, end;
                     float changedWeight;
+
                     in >> start >> end >> changedWeight;
                     for (auto j = 0; j < list[start].size(); j++) {
                         if (list[start][j].vert == end) {
@@ -360,33 +323,6 @@ int main() {
                     }
                     updateVertex(start);
                 }
-
-                /*COUT FOR LIST
-                 for (int i = 0; i < list.size(); i++) {
-                    for (auto j: list[i]) {
-                        cout << "\n" << i << " " << j.vert << " " << j.weight ;
-                    }
-                }
-                cout << "\n\n";*/
-
-             /*CHECK IF QUEUE UPDATES VALUE OF CALK KEY AND IT DOESNT
-              priority_queue<forQueue, vector<forQueue>, Compare> copyQTest;
-            copyQTest = Q;
-            while (!copyQTest.empty()) {
-                cout << "\n" << copyQTest.top().v << " " << copyQTest.top().key1 << " " << copyQTest.top().key2;
-                copyQTest.pop();
-            }
-            copyQTest = Q;
-            priority_queue<forQueue, vector<forQueue>, Compare> copyQTest2;
-            while (!copyQTest.empty()) {
-                int qTopVert = copyQTest.top().v;
-                copyQTest.pop();
-                copyQTest2.push(calcKey(qTopVert));
-            }
-            while (!copyQTest2.empty()) {
-                cout << "\n" << copyQTest2.top().v << " " << copyQTest2.top().key1 << " " << copyQTest2.top().key2;
-                copyQTest2.pop();
-            }*/
 
                 priority_queue<forQueue, vector<forQueue>, Compare> copyQ;
                 while (!Q.empty()) {
@@ -399,31 +335,18 @@ int main() {
             }
         }
 
-        /*for (auto i: dist) {
-            cout << "\n" << i.rhs << " " << i.g;
-        }*/
+        unsigned int end_time = clock();
 
         if (dist[fromVert].rhs == MAX) {
             dist[fromVert].rhs = -1;
         }
 
         if (abs(dist[fromVert].rhs - Dijkstra()) < eps) {
-            //cout << "Passed!\n";
+            cout << testNum << " is passed! Time: " << end_time - start_time << "\n";
         } else {
             cout << "!!!!!!!!!!!!Wrong answer!!!!!!!!!!!!!!! " << dist[fromVert].rhs << " " << Dijkstra() << " " << testNum << "\n";
         }
-        //cout << "   " << dist[fromVert].rhs << " " << Dijkstra() << "\n";
-
-
-        /*vector<int> res = pred(5);
-        for (auto i : res) {
-            cout << i << " ";
-        }
-
-        vector<int> res = succ(5);
-        for (auto i : res) {
-            cout << i << " ";
-        }*/
-    //}
-
+        timeD += end_time - start_time;
+    }
+    cout << "Average time is: " << timeD/testNum << "\n";
 }
