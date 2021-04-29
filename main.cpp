@@ -3,10 +3,9 @@
 #include <vector>
 #include <queue>
 #include <cmath>
-#include <time.h>
 #include <set>
-
-using namespace std;
+#include <ctime>
+#include <algorithm>
 
 struct coordStruct {
     int x;
@@ -18,31 +17,44 @@ struct part {
     double weight;
 };
 
-struct newVertPlace {
-    int vert;
-    int x;
-    int y;
+struct distStruct {
+    double g;
+    double rhs;
 };
 
-struct newEdgesStruct {
-    int start;
-    int end;
-    double weight;
+struct forQueue {
+    int v;
+    double key1;
+    double key2;
 };
 
-int getMinVert(vector <vector <part>> list_, vector <coordStruct> coord_, int from, int to) {
-    double minPath = INT16_MAX;
-    int nextVert = 1;
-    for (auto j: list_[from]) {
-        if (minPath > j.weight + sqrt(pow(coord_[j.vert].x - coord_[to].x, 2) + pow(coord_[j.vert].y - coord_[to].y, 2))) {
-            minPath = j.weight + sqrt(pow(coord_[j.vert].x - coord_[to].x, 2) + pow(coord_[j.vert].y - coord_[to].y, 2));
-            nextVert = j.vert;
+struct Compare
+{
+    bool operator()(const forQueue& x, const forQueue& y) const
+    {
+        if (x.key1 != y.key1) {
+            return x.key1 > y.key1;
+        } else {
+            return x.key2 > y.key2;
         }
     }
-    return nextVert;
-}
+};
 
-double Dijkstra(vector <vector <part>> list_, int fromVert, int endVert, int vertNum) {
+using namespace std;
+
+int vertNum, edgeNum, startVert, endVert;
+
+priority_queue<forQueue, vector<forQueue>, Compare> Q;
+vector <vector <part>> list(0);
+vector <distStruct> dist (0);
+vector <coordStruct> coord(0);
+int fromVert = 0;
+const auto MAX = 100000;
+const auto eps = 0.001;
+int counter = 0;
+
+
+double Dijkstra() {
     vector <double> distDijkstra(vertNum+1);
     for (int i = 0; i <= vertNum; i++) {
         distDijkstra[i] = INT_MAX;
@@ -54,8 +66,8 @@ double Dijkstra(vector <vector <part>> list_, int fromVert, int endVert, int ver
         int from = s.begin()->first;
         s.erase(s.begin());
 
-        for (int i = 0; i < list_[from].size(); i++) {
-            part to = list_[from][i];
+        for (int i = 0; i < list[from].size(); i++) {
+            part to = list[from][i];
 
             if (distDijkstra[from] + to.weight < distDijkstra[to.vert]) {
                 s.erase(pair<int, double>(to.vert, to.weight));
@@ -72,169 +84,287 @@ double Dijkstra(vector <vector <part>> list_, int fromVert, int endVert, int ver
     }
 }
 
-//input : vert number, edge number, from, to
-//vert number lines with x, y coordinates
-//edge number lines with a vert, b vert and edge value
+void clearData() {
+    while (!Q.empty()) {
+        Q.pop();
+    }
+    list.clear();
+    list.resize(20);
+    dist.clear();
+    coord.clear();
+}
 
-//if changed
-//Y
-//changed vert number, changed edge number
-//changed vert number with vert, x, y
-//changed edge number with start, end, changed edge value
+bool inVerts(vector<int> vec, int s, int e) {
+    for (auto i: vec) {
+        if (i == s || i == e) {
+            return true;
+        }
+    }
+    return false;
+}
 
+int operator< (forQueue a, forQueue b) { //tested
+    if (a.key1 < b.key1) {
+        return true;
+    }
+    if (a.key1 > b.key1) {
+        return false;
+    }
+    if (a.key2 < b.key2) {
+        return true;
+    }
+    return false;
+}
+
+vector<int> pred(int u) { //tested
+    vector<int> res;
+    for (int i = 0; i < list.size(); i++) {
+        for (auto j: list[i]) {
+            if (j.vert == u) {
+                res.push_back(i);
+            }
+        }
+    }
+    return res;
+}
+
+vector<int> succ(int f) { //tested
+    vector<int> res;
+    for (auto j: list[f]) {
+        res.push_back(j.vert);
+    }
+    return res;
+}
+
+double getEdgeValue(int a, int b) { //tested
+    for (auto j: list[a]) {
+        if (j.vert == b) {
+            return j.weight;
+        }
+    }
+}
+
+void remove(int u) { //tested
+    vector<forQueue> vec;
+    while (!Q.empty()) {
+        if (Q.top().v != u) {
+            vec.push_back(Q.top());
+        }
+        Q.pop();
+    }
+    for (auto i: vec) {
+        Q.push(i);
+    }
+}
+
+double h(int a, int b) { //евклидово расстояние по прямой
+    return sqrt(pow(coord[a].x - coord[b].x, 2) + pow(coord[a].y - coord[b].y, 2));
+}
+
+double minSuccVert(int prevVert, char val) { //return path or vert
+    double min = MAX;
+    double pathToS = 0;
+    int vert = 0;
+    for (auto s : succ(prevVert)) {
+        pathToS = getEdgeValue(prevVert, s) + dist[s].g;
+        if (min > pathToS) {
+            min = pathToS;
+            vert = s;
+        }
+    }
+    if (val == 'v') {
+        return vert;
+    } else {
+        return min;
+    }
+}
+
+bool inQueue(int u) { //tested
+    priority_queue<forQueue, vector<forQueue>, Compare> copyQ;
+    copyQ = Q;
+    while (!copyQ.empty()) {
+        if (copyQ.top().v == u) {
+            return true;
+        }
+        copyQ.pop();
+    }
+    return false;
+}
+
+forQueue calcKey(int s) {
+    forQueue mem{};
+    mem.v = s;
+    mem.key1 = min(dist[s].g, dist[s].rhs) + h(fromVert, s);
+    mem.key2 = min(dist[s].g, dist[s].rhs);
+    return mem;
+}
+
+void initialize() {
+    for (auto i = 0; i < vertNum; i++) {
+        dist.push_back({MAX, MAX});
+    }
+    dist[endVert].rhs = 0;
+    Q.push(calcKey(endVert));
+}
+
+void updateVertex(int u) {
+    if (u != endVert) {
+        dist[u].rhs = minSuccVert(u, 'p');
+    }
+
+    if (inQueue(u)) {
+        remove(u);
+    }
+
+    if (dist[u].g != dist[u].rhs) {
+        Q.push(calcKey(u));
+    }
+}
+
+void computeShortestPath() {
+    while (((Q.top() < calcKey(startVert)) ||
+        (dist[startVert].rhs != dist[startVert].g)) && (!Q.empty()))   {
+        auto u = Q.top().v;
+        Q.pop();
+        if (dist[u].g > dist[u].rhs) {
+            dist[u].g = dist[u].rhs;
+            for (auto s : pred(u)) {
+                updateVertex(s);
+            }
+        } else {
+            dist[u].g = MAX;
+            for (auto s : pred(u)) {
+                updateVertex(s);
+            }
+            updateVertex(u);                                                                                                                           //may cause troubles
+        }
+    }
+}
 
 int main() {
-    int minN = 3;
-    int maxN = 100;
+    //input : vert number, edge number, from, to
+    //vert number lines with x, y coordinates
+    //edge number lines with a vert, b vert and edge value
 
+    //if changed
+    //Y
+    //changed vert number, changed edge number
+    //changed vert number with vert, x, y
+    //changed edge number with start, end, changed edge value
 
-
-    srand(time(NULL));
-    for (int i = 0; i < 1000; ++i) {
-        int testNum = i;
+    //0-10 - 5vert
+    //11-20 - 10vert
+    //21-25 - 100vert
+    //26-40 - 1000vert
+    //41-60 - 5000vert
+    //60-64 - 5vert with change
+    //65-79 - 10vert with change
+    //80-99 - 100vert with change
+    //100-109 - 1000vert with change
+    //110-119 - 5000vert with change
+    int testNum = 0;
+    double timeD = 0;
+    for (int i = 0; i < 100; i++) {
+        clearData();
+        testNum = i;
         string testName = "input" + to_string(testNum) + ".txt";
+        ifstream in("D:\\6sem\\algorithm\\testDirective\\tests100\\" + testName);
+        ofstream out("output.txt");
 
-        ofstream out("D:\\6sem\\algorithm\\tests100\\" + testName);
+        in >> vertNum >> edgeNum >> fromVert >> endVert;
+        startVert = fromVert;
+        list.resize(vertNum);
 
-
-//    Получаем minN <= nVertex <= maxN
-        int nVertex = minN + rand() % (maxN - minN + 1);
-
-
-        int minM = nVertex;
-        int maxM = (nVertex * (nVertex - 1)) / 2;
-//    Получаем minM <= nEdges <= maxM
-        int nEdges = minM + rand() % (maxM - minM + 1);
-
-
-        vector <vector <part>> list(nVertex);
-        vector <coordStruct> coord(0);
-
-
-        int minC = 0;
-        int maxC = 50;
-        for (int i = 0; i < nVertex; ++i) {
-            bool isContinued = false;
-            //Добавляем координаты вершие в массив координат
-            int x = minC + rand() % (maxC - minC + 1);
-            int y = minC + rand() % (maxC - minC + 1);
-            for (auto i: coord) {
-                if ((i.x == x) && (i.y == y)) {
-                    isContinued = true;
-                }
-            }
-            if (isContinued) {
-                i--;
-                continue;
-            }
-            coordStruct mem{x, y};
+        for (auto i = 0; i < vertNum; i++) {
+            coordStruct mem{};
+            in >> mem.x >> mem.y;
             coord.push_back(mem);
         }
 
-        for (int i = 0; i < nEdges; ++i) {
-            bool isContinued = false;
-//        Генерируем случайные рёбра для графа и высчитываем их веса, используя массив координат
-            int from = rand() % nVertex;
-            int to = rand() % nVertex;
-
-//        Тут можешь проверять, можно ли такое ребро добавлять, не сломает ли оно граф.
-//        Я вот проверил, чтобы не было петель:
-            if (from == to) {
-//            Херовый тест получился, потому что ребро ведёт само в себя.
-                isContinued = true;
-            }
-            for (auto j: list[from]) {
-                if (j.vert == to) {
-                    isContinued = true;
-                }
-            }
-            for (auto j: list[to]) {
-                if (j.vert == from) {
-                    isContinued = true;
-                }
-            }
-            if (isContinued) {
-                i--;
-                continue;
-            }
+        for (auto i = 0; i < edgeNum; i++) {
+            int edgeStart, edgeEnd;
+            float edgeWeight;
+            in >> edgeStart >> edgeEnd >> edgeWeight;
 
             part mem{};
-            mem.vert = to;
-            mem.weight = sqrt(pow(coord[from].x - coord[to].x, 2) + pow(coord[from].y - coord[to].y, 2));
-            list[from].push_back(mem);
+            mem.vert = edgeEnd;
+            mem.weight = edgeWeight;
+
+            list[edgeStart].push_back(mem);
         }
 
-        if (Dijkstra(list, 0, nVertex-1, nVertex) == -1) {
-            i--;
-            continue;
-        }
+        unsigned int start_time =  clock(); // начальное время
+        initialize();
 
-        out << nVertex << " " << nEdges << " " << 0 << " " << nVertex-1 << "\n";
-        for (auto i : coord) {
-            out << i.x << " " << i.y << "\n";
-        }
-        for (int i = 0; i < nVertex; i++) {
-            for (auto j : list[i]) {
-                out << i << " " << j.vert << " " << j.weight << "\n";
+        computeShortestPath();
+
+        while (startVert != endVert) {
+
+            if (dist[startVert].g == MAX) {
+                break;
             }
-        }
 
+            startVert = int(minSuccVert(startVert, 'v'));
 
-
-        //Генерируем часть с изменением графа///
-        int minChangedVert = 1;
-        int maxChangedVert = 1;
-//    Находим количество измененных вершин
-        int changedVertNum = minChangedVert + rand() % (maxChangedVert - minChangedVert + 1);
-        //Генерируем номера измененных вершин и их координаты
-        vector<newVertPlace> changedVerts(0);
-        vector<newEdgesStruct> newEdges(0);
-        for (int i = 0; i < changedVertNum; ++i) {
-            bool isContinued = false;
-            int minVert = 0;
-            int maxVert = nVertex;
-            //Генерируем номер изменяемой вершины
-            //int changedVert = minVert + rand() % (maxVert - minVert + 1);
-            int changedVert = getMinVert(list, coord, 0, nVertex - 1);
-            //Генерируем новые координаты для измененной вершины
-            int newX = minC + rand() % (maxC - minC + 1);
-            int newY = minC + rand() % (maxC - minC + 1);
-            for (auto i: coord) {
-                if ((i.x == newX) && (i.y == newY)) {
-                    isContinued = true;
-                }
-            }
-            if (isContinued) {
-                i--;
-                continue;
-            }
-            coord[changedVert].x = newX;
-            coord[changedVert].y = newY;
-            changedVerts.push_back({changedVert, newX, newY});
-            //Высчитываем новые веса для всех ребер, входящих в и выходящих из измененной вершины
-
-            for (int j = 0; j < list.size(); j++) {
-                for (auto k: list[j]) {
-                    if (j == changedVert) {
-                        double changedWeight = sqrt(pow(coord[j].x - coord[k.vert].x, 2) + pow(coord[j].y - coord[k.vert].y, 2));
-                        newEdges.push_back({j, k.vert, changedWeight});
-                    }
-                    if (k.vert == changedVert) {
-                        double changedWeight = sqrt(pow(coord[j].x - coord[k.vert].x, 2) + pow(coord[j].y - coord[k.vert].y, 2));
-                        newEdges.push_back({j, k.vert, changedWeight});
+            char choice;
+            in >> choice;
+            if ((choice == 'Y') && in.peek() != EOF) {
+                bool correctTest = true;
+                int changedVertNumber;
+                int changedEdgesNumber;
+                in >> changedVertNumber >> changedEdgesNumber;
+                vector <int> verts(0);
+                for (auto i = 0; i < changedVertNumber; i++) {
+                    int vert, x, y;
+                    in >> vert >> x >> y;
+                    if (vert == startVert) {
+                        coord[vert].x = x;
+                        coord[vert].y = y;
+                        verts.push_back(vert);
+                        counter++;
                     }
                 }
+
+
+                for (auto i = 0; i < changedEdgesNumber; i++) {//correct
+                    int start, end;
+                    float changedWeight;
+                    in >> start >> end >> changedWeight;
+
+                    if (inVerts(verts, start, end)) {
+                        for (auto j = 0; j < list[start].size(); j++) {
+                            if (list[start][j].vert == end) {
+                                list[start][j].weight = changedWeight;
+                            }
+                        }
+                        updateVertex(start);
+                    }
+
+                }
+
+                priority_queue<forQueue, vector<forQueue>, Compare> copyQ;
+                while (!Q.empty()) {
+                    int qTopVert = Q.top().v;
+                    Q.pop();
+                    copyQ.push(calcKey(qTopVert));
+                }
+                Q = copyQ;
+                computeShortestPath();
             }
         }
-        out << "Y\n" << changedVerts.size() << " " << newEdges.size() << "\n";
-        for (auto j: changedVerts) {
-            out << j.vert << " " << j.x << " " << j.y << "\n";
-        }
-        for (auto j: newEdges) {
-            out << j.start << " " << j.end << " " << j.weight << "\n";
+
+        unsigned int end_time = clock();
+
+        if (dist[fromVert].rhs == MAX) {
+            dist[fromVert].rhs = -1;
         }
 
-
-        testNum++;
+        if (abs(dist[fromVert].rhs - Dijkstra()) < eps) {
+            //cout << testNum << " "  << " "  << dist[fromVert].rhs  << " is passed! Time: " << end_time - start_time << "\n";
+        } else {
+            cout << " " << testNum << " !!!!!!!!!!!!Wrong answer!!!!!!!!!!!!!!! " << dist[fromVert].rhs << " " << Dijkstra()  << "\n";
+        }
+        timeD += end_time - start_time;
     }
+    cout << "Average time is: " << timeD/testNum << "\n" << counter;
 }
