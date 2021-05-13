@@ -110,7 +110,7 @@ int operator< (forQueue a, forQueue b) { //tested
     if (a.key1 > b.key1) {
         return false;
     }
-    if (a.key2 < b.key2) {
+    if (a.key2 <= b.key2) {
         return true;
     }
     return false;
@@ -194,7 +194,7 @@ bool inQueue(int u) { //tested
 forQueue calcKey(int s) {
     forQueue mem{};
     mem.v = s;
-    mem.key1 = min(dist[s].g, dist[s].rhs) + h(fromVert, s);
+    mem.key1 = min(dist[s].g, dist[s].rhs) + h(startVert, s);
     mem.key2 = min(dist[s].g, dist[s].rhs);
     return mem;
 }
@@ -222,7 +222,7 @@ void updateVertex(int u) {
 }
 
 void computeShortestPath() {
-    while (((Q.top() < calcKey(startVert)) ||
+    while (((Q.top() < calcKey(fromVert)) ||
         (dist[startVert].rhs != dist[startVert].g)) && (!Q.empty()))   {
         auto u = Q.top().v;
         Q.pop();
@@ -264,11 +264,11 @@ int main() {
     //110-119 - 5000vert with change
     int testNum = 0;
     double timeD = 0;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 14; i < 20; i++) {
         clearData();
         testNum = i;
         string testName = "input" + to_string(testNum) + ".txt";
-        ifstream in("D:\\6sem\\algorithm\\testDirective\\tests100\\" + testName);
+        ifstream in("D:\\6sem\\algorithm\\testDirective\\testsProd\\" + testName);
         ofstream out("output.txt");
 
         in >> vertNum >> edgeNum >> fromVert >> endVert;
@@ -300,7 +300,7 @@ int main() {
 
         while (startVert != endVert) {
 
-            if (dist[startVert].g == MAX) {
+            if (dist[startVert].g == MAX) {//Наверное fromVert
                 break;
             }
 
@@ -360,11 +360,11 @@ int main() {
         }
 
         if (abs(dist[fromVert].rhs - Dijkstra()) < eps) {
-            //cout << testNum << " "  << " "  << dist[fromVert].rhs  << " is passed! Time: " << end_time - start_time << "\n";
+            cout << testNum << " "  << " "  << dist[fromVert].rhs  << " is passed! Time: " << end_time - start_time << "\n";
         } else {
             cout << " " << testNum << " !!!!!!!!!!!!Wrong answer!!!!!!!!!!!!!!! " << dist[fromVert].rhs << " " << Dijkstra()  << "\n";
         }
         timeD += end_time - start_time;
     }
-    cout << "Average time is: " << timeD/testNum << "\n" << counter;
+    cout << "Average time is: " << timeD/(testNum + 1);
 }
