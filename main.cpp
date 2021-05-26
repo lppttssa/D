@@ -6,6 +6,7 @@
 #include <set>
 #include <ctime>
 #include <algorithm>
+#include <chrono>
 
 struct coordStruct {
     int x;
@@ -41,6 +42,7 @@ struct Compare
 };
 
 using namespace std;
+using namespace std::chrono;
 
 int vertNum, edgeNum, startVert, endVert;
 
@@ -52,9 +54,14 @@ int fromVert = 0;
 const auto MAX = 100000;
 const auto eps = 0.001;
 int counter = 0;
+high_resolution_clock::time_point start_time;
+high_resolution_clock::time_point end_time;
+duration<double> fullDijTime;
 
 
 double Dijkstra() {
+    //startDijTime = clock();
+    //startDijTime = high_resolution_clock::now();
     vector <double> distDijkstra(vertNum+1);
     for (int i = 0; i <= vertNum; i++) {
         distDijkstra[i] = INT_MAX;
@@ -76,6 +83,10 @@ double Dijkstra() {
             }
         }
     }
+    //endDijTime = clock();
+    //endDijTime = high_resolution_clock::now();
+    //fullDijTime += endDijTime - startDijTime;
+    //fullDijTime += duration_cast<duration<double>>(endDijTime - startDijTime);
     if (distDijkstra[endVert] == INT_MAX) {
         return(-1);
     }
@@ -264,107 +275,132 @@ int main() {
     //110-119 - 5000vert with change
     int testNum = 0;
     double timeD = 0;
-    for (int i = 14; i < 20; i++) {
-        clearData();
-        testNum = i;
-        string testName = "input" + to_string(testNum) + ".txt";
-        ifstream in("D:\\6sem\\algorithm\\testDirective\\testsProd\\" + testName);
-        ofstream out("output.txt");
+    vector<duration<double>> times;
+    for (int i = 1; i <= 3; i++) {
+    //for (int j = 0; j < 10; j++) {
+        //9 тест быстрее
 
-        in >> vertNum >> edgeNum >> fromVert >> endVert;
-        startVert = fromVert;
-        list.resize(vertNum);
+            clearData();
+            testNum = i;
+            string testName = "input" + to_string(testNum) + ".txt";
+            string output = "output" + to_string(testNum) + ".txt";
+            ifstream in("D:\\6sem\\algorithm\\forCats\\" + testName);
+            //ofstream out("D:\\6sem\\algorithm\\forCats\\" + output);
 
-        for (auto i = 0; i < vertNum; i++) {
-            coordStruct mem{};
-            in >> mem.x >> mem.y;
-            coord.push_back(mem);
-        }
+            in >> vertNum >> edgeNum >> fromVert >> endVert;
+            startVert = fromVert;
+            list.resize(vertNum);
 
-        for (auto i = 0; i < edgeNum; i++) {
-            int edgeStart, edgeEnd;
-            float edgeWeight;
-            in >> edgeStart >> edgeEnd >> edgeWeight;
-
-            part mem{};
-            mem.vert = edgeEnd;
-            mem.weight = edgeWeight;
-
-            list[edgeStart].push_back(mem);
-        }
-
-        unsigned int start_time =  clock(); // начальное время
-        initialize();
-
-        computeShortestPath();
-
-        while (startVert != endVert) {
-
-            if (dist[startVert].g == MAX) {//Наверное fromVert
-                break;
+            for (auto i = 0; i < vertNum; i++) {
+                coordStruct mem{};
+                in >> mem.x >> mem.y;
+                coord.push_back(mem);
             }
 
-            startVert = int(minSuccVert(startVert, 'v'));
+            for (auto i = 0; i < edgeNum; i++) {
+                int edgeStart, edgeEnd;
+                float edgeWeight;
+                in >> edgeStart >> edgeEnd >> edgeWeight;
 
-            char choice;
-            in >> choice;
-            if ((choice == 'Y') && in.peek() != EOF) {
-                bool correctTest = true;
-                int changedVertNumber;
-                int changedEdgesNumber;
-                in >> changedVertNumber >> changedEdgesNumber;
-                vector <int> verts(0);
-                for (auto i = 0; i < changedVertNumber; i++) {
-                    int vert, x, y;
-                    in >> vert >> x >> y;
-                    if (vert == startVert) {
-                        coord[vert].x = x;
-                        coord[vert].y = y;
-                        verts.push_back(vert);
-                        counter++;
-                    }
+                part mem{};
+                mem.vert = edgeEnd;
+                mem.weight = edgeWeight;
+
+                list[edgeStart].push_back(mem);
+            }
+
+            start_time = high_resolution_clock::now();; // начальное время
+            initialize();
+
+            computeShortestPath();
+
+            while (startVert != endVert) {
+
+                if (dist[startVert].g == MAX) {//Наверное fromVert
+                    break;
                 }
 
+                startVert = int(minSuccVert(startVert, 'v'));
 
-                for (auto i = 0; i < changedEdgesNumber; i++) {//correct
-                    int start, end;
-                    float changedWeight;
-                    in >> start >> end >> changedWeight;
+                char choice;
+                in >> choice;
+                if ((choice == 'Y') && in.peek() != EOF) {
+                    bool correctTest = true;
+                    int changedVertNumber;
+                    int changedEdgesNumber;
+                    in >> changedVertNumber >> changedEdgesNumber;
+                    vector<int> verts(0);
 
-                    if (inVerts(verts, start, end)) {
-                        for (auto j = 0; j < list[start].size(); j++) {
-                            if (list[start][j].vert == end) {
-                                list[start][j].weight = changedWeight;
-                            }
+
+                    for (auto i = 0; i < changedVertNumber; i++) {
+                        int vert, x, y;
+                        in >> vert;// >> x >> y;
+                        if (vert == startVert) {
+                            /*coord[vert].x = x;
+                            coord[vert].y = y;*/
+                            verts.push_back(vert);
+                            counter++;
                         }
-                        updateVertex(start);
                     }
 
+                    for (auto i = 0; i < changedEdgesNumber; i++) {//correct
+                        int start, end;
+                        float changedWeight;
+                        in >> start >> end >> changedWeight;
+
+                        if (inVerts(verts, start, end)) {
+                            //high_resolution_clock::time_point startMinusTime = high_resolution_clock::now();
+                            for (auto j = 0; j < list[start].size(); j++) {
+                                if (list[start][j].vert == end) {
+                                    list[start][j].weight = changedWeight;
+                                }
+                            }
+                            //high_resolution_clock::time_point endMinusTime = high_resolution_clock::now();
+                            //duration_cast<duration<double>>(endMinusTime - startMinusTime);
+                            updateVertex(start);
+                        }
+                    }
+
+                    priority_queue<forQueue, vector<forQueue>, Compare> copyQ;
+                    while (!Q.empty()) {
+                        int qTopVert = Q.top().v;
+                        Q.pop();
+                        copyQ.push(calcKey(qTopVert));
+                    }
+                    Q = copyQ;
+                    computeShortestPath();
+                    //double res = Dijkstra();
                 }
 
-                priority_queue<forQueue, vector<forQueue>, Compare> copyQ;
-                while (!Q.empty()) {
-                    int qTopVert = Q.top().v;
-                    Q.pop();
-                    copyQ.push(calcKey(qTopVert));
-                }
-                Q = copyQ;
-                computeShortestPath();
             }
-        }
 
-        unsigned int end_time = clock();
+            //unsigned int end_time = clock();
+            end_time = high_resolution_clock::now();
 
-        if (dist[fromVert].rhs == MAX) {
-            dist[fromVert].rhs = -1;
-        }
+            if (dist[fromVert].rhs == MAX) {
+                dist[fromVert].rhs = -1;
+            }
 
-        if (abs(dist[fromVert].rhs - Dijkstra()) < eps) {
-            cout << testNum << " "  << " "  << dist[fromVert].rhs  << " is passed! Time: " << end_time - start_time << "\n";
-        } else {
-            cout << " " << testNum << " !!!!!!!!!!!!Wrong answer!!!!!!!!!!!!!!! " << dist[fromVert].rhs << " " << Dijkstra()  << "\n";
+            duration<double> time = fullDijTime;
+            duration<double> timeDNew = duration_cast<duration<double>>(end_time - start_time);
+            if (abs(dist[fromVert].rhs - Dijkstra()) < eps) {
+                cout << testNum << " " << " " << dist[fromVert].rhs << " is passed! D time: " << timeDNew.count() << "\n";
+                     //out << dist[fromVert].rhs;
+            } else {
+                cout << " " << testNum << " !!!!!!!!!!!!Wrong answer!!!!!!!!!!!!!!! " << dist[fromVert].rhs << " "
+                     << Dijkstra() << "\n";
+            }
+            times.push_back(timeDNew);
+            //timeD += end_time - start_time;
+            //out.close();
         }
-        timeD += end_time - start_time;
-    }
-    cout << "Average time is: " << timeD/(testNum + 1);
+        double t = 0;
+        for (auto i: times) {
+            t += i.count();
+        }
+        times.clear();
+        cout << testNum << "Average time:" << t/10 << "\n";
+    //}
+    //cout << "Average time is: " << timeD/(testNum + 1) << "\n";
+
 }
